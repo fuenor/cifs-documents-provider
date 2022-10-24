@@ -21,7 +21,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        base.archivesName.set("CIFSDocumentsProvider-${versionName}")
+        base.archivesName.set("SMB-${versionName}")
     }
 
     buildTypes {
