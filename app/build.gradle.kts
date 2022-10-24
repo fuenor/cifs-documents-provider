@@ -13,7 +13,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.wa2c.android.cifsdocumentsprovider"
+        applicationId = "com.smb.android.documentsprovider"
         minSdk = Deps.minSdkVersion
         targetSdk = Deps.targetSdkVersion
         versionCode = 16

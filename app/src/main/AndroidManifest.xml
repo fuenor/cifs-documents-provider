@@ -43,7 +43,7 @@
 
         <provider
             android:name=".presentation.provider.CifsDocumentsProvider"
-            android:authorities="com.wa2c.android.cifsdocumentsprovider.documents"
+            android:authorities="com.smb.android.documentsprovider.documents"
             android:exported="true"
             android:grantUriPermissions="true"
             android:permission="android.permission.MANAGE_DOCUMENTS">
