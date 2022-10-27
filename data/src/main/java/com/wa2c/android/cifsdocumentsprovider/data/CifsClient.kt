@@ -87,7 +87,7 @@ internal class CifsClient @Inject constructor() {
     /**
      * Get SMB file
      */
-    private suspend fun getSmbFile(dto: CifsClientDto, forced: Boolean = false): SmbFile? {
+    suspend fun getSmbFile(dto: CifsClientDto, forced: Boolean = false): SmbFile? {
         return withContext(Dispatchers.IO) {
             try {
                 val context = (if (forced) null else contextCache[dto.connection]) ?: getCifsContext(dto.connection)

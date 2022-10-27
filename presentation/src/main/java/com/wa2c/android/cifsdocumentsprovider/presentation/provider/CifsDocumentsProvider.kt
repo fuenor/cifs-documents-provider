@@ -19,9 +19,13 @@ import com.wa2c.android.cifsdocumentsprovider.domain.model.CifsConnection
 import com.wa2c.android.cifsdocumentsprovider.domain.model.CifsFile
 import com.wa2c.android.cifsdocumentsprovider.domain.repository.CifsRepository
 import com.wa2c.android.cifsdocumentsprovider.presentation.R
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.android.asCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import java.io.*
 import java.nio.file.Paths
+import java.security.MessageDigest
 
 /**
  * CIFS DocumentsProvider
@@ -157,17 +161,89 @@ class CifsDocumentsProvider : DocumentsProvider() {
         mode: String,
         signal: CancellationSignal?
     ): ParcelFileDescriptor? {
-        val accessMode = AccessMode.fromSafMode(mode)
+        val accessMode = AccessMode.fromSafMode("r")
         return runOnFileHandler {
             val uri = documentId?.let { getCifsFileUri(it) } ?: return@runOnFileHandler null
             cifsRepository.getCallback(uri, accessMode)
         }?.let { callback ->
-            storageManager.openProxyFileDescriptor(
+            val proxyFileDescriptor = storageManager.openProxyFileDescriptor(
                 ParcelFileDescriptor.parseMode(accessMode.safMode),
                 callback,
                 fileHandler
             )
+            if (!mode.contains("w")) return proxyFileDescriptor
+
+            try {
+                val file = documentId?.let { getFileForDocId(it) }
+                copyFile(proxyFileDescriptor, file)
+                proxyFileDescriptor.close()
+                val handler = Handler(context!!.mainLooper)
+                return ParcelFileDescriptor.open(
+                    file,
+                    ParcelFileDescriptor.parseMode(mode),
+                    handler
+                ) {
+                    upload(file, documentId)
+                    file?.delete()
+                }
+            } catch (e: Exception) {
+                throw IOException(
+                    "Failed to open document with id $documentId : $mode"
+                )
+            }
         }
+    }
+
+    private fun upload(file: File?, documentId: String?) {
+        if (file == null || documentId == null) return
+        runOnFileHandler {
+            cifsRepository.truncate(getCifsUri(documentId))
+            proxyUpload(file, documentId)
+        }
+    }
+
+    private suspend fun proxyUpload(file: File?, documentId: String?) {
+        if (file == null || documentId == null) return
+        val uri = getCifsFileUri(documentId)
+        val buf = ByteArray(1024*1024)
+        var len: Int
+        var offset: Long = 0
+        val callback = uri.let { cifsRepository.getCallback(it, AccessMode.W) }
+        withContext(Dispatchers.IO) {
+            FileInputStream(file).use { input ->
+                while (input.read(buf).also { len = it } > 0) {
+                    callback?.onWrite(offset, len, buf)
+                    offset += len
+                }
+                input.close()
+            }
+        }
+        callback?.onRelease()
+    }
+
+    private fun copyFile(parcelFileDescriptor: ParcelFileDescriptor?, file: File?) {
+        try {
+            val reader = BufferedInputStream(FileInputStream(parcelFileDescriptor?.fileDescriptor))
+            val writer = BufferedOutputStream(FileOutputStream(file))
+            val buf = ByteArray(1024)
+            var len: Int
+            while (reader.read(buf).also { len = it } > 0) {
+                writer.write(buf, 0, len)
+            }
+            reader.close()
+            writer.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun getFileForDocId(documentId: String): File {
+        val filename = MessageDigest.getInstance("SHA-256")
+            .digest(documentId.toByteArray())
+            .joinToString(separator = "") {
+                "%02x".format(it)
+            }
+        return File(providerContext.filesDir, filename)
     }
 
     override fun createDocument(

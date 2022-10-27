@@ -17,6 +17,7 @@ import com.wa2c.android.cifsdocumentsprovider.data.db.ConnectionSettingDao
 import com.wa2c.android.cifsdocumentsprovider.data.preference.AppPreferences
 import com.wa2c.android.cifsdocumentsprovider.domain.model.CifsConnection
 import com.wa2c.android.cifsdocumentsprovider.domain.model.CifsFile
+import jcifs.smb.SmbFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -224,6 +225,21 @@ class CifsRepository @Inject internal constructor(
         return withContext(Dispatchers.IO) {
             val dto = getClientDto(uri) ?: return@withContext null
             cifsClient.getFileDescriptor(dto, mode) ?: return@withContext null
+        }
+    }
+
+    /**
+     * FIXME: Truncate file
+     */
+    @Throws(java.lang.Exception::class)
+    suspend fun truncate(uri: String) {
+        try {
+            val dto = getClientDto(uri)
+            val smbFile = dto?.let { cifsClient.getSmbFile(it) }
+            val os = smbFile?.openOutputStream(false, SmbFile.FILE_SHARE_WRITE)
+            os?.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
