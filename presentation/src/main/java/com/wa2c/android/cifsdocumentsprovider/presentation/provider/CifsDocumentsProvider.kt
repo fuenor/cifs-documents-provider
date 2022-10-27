@@ -138,7 +138,18 @@ class CifsDocumentsProvider : DocumentsProvider() {
         sizeHint: Point?,
         signal: CancellationSignal?
     ): AssetFileDescriptor? {
-        return null
+        val accessMode = AccessMode.fromSafMode("r")
+        return runOnFileHandler {
+            val uri = documentId?.let { getCifsFileUri(it) } ?: return@runOnFileHandler null
+            cifsRepository.getCallback(uri, accessMode)
+        }?.let { callback ->
+            val pfd = storageManager.openProxyFileDescriptor(
+                ParcelFileDescriptor.parseMode(accessMode.safMode),
+                callback,
+                fileHandler
+            )
+            return AssetFileDescriptor(pfd, 0, AssetFileDescriptor.UNKNOWN_LENGTH)
+        }
     }
 
     override fun openDocument(
@@ -270,7 +281,8 @@ class CifsDocumentsProvider : DocumentsProvider() {
                                 DocumentsContract.Document.FLAG_SUPPORTS_MOVE or
                                 DocumentsContract.Document.FLAG_SUPPORTS_DELETE or
                                 DocumentsContract.Document.FLAG_SUPPORTS_REMOVE or
-                                DocumentsContract.Document.FLAG_SUPPORTS_RENAME
+                                DocumentsContract.Document.FLAG_SUPPORTS_RENAME or
+                                if (file.name.mimeType.startsWith("image/")) DocumentsContract.Document.FLAG_SUPPORTS_THUMBNAIL else 0
                     )
                 }
             }
