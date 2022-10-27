@@ -5,6 +5,7 @@ import android.content.res.AssetFileDescriptor
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.graphics.Point
+import android.net.Uri
 import android.os.*
 import android.os.storage.StorageManager
 import android.provider.DocumentsContract
@@ -13,12 +14,15 @@ import com.wa2c.android.cifsdocumentsprovider.common.utils.logE
 import com.wa2c.android.cifsdocumentsprovider.common.utils.mimeType
 import com.wa2c.android.cifsdocumentsprovider.common.utils.pathFragment
 import com.wa2c.android.cifsdocumentsprovider.common.values.AccessMode
+import com.wa2c.android.cifsdocumentsprovider.common.values.SendDataState
 import com.wa2c.android.cifsdocumentsprovider.common.values.URI_AUTHORITY
 import com.wa2c.android.cifsdocumentsprovider.createCifsRepository
 import com.wa2c.android.cifsdocumentsprovider.domain.model.CifsConnection
 import com.wa2c.android.cifsdocumentsprovider.domain.model.CifsFile
+import com.wa2c.android.cifsdocumentsprovider.domain.model.SendData
 import com.wa2c.android.cifsdocumentsprovider.domain.repository.CifsRepository
 import com.wa2c.android.cifsdocumentsprovider.presentation.R
+import com.wa2c.android.cifsdocumentsprovider.presentation.notification.SendNotification
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.android.asCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
@@ -205,19 +209,37 @@ class CifsDocumentsProvider : DocumentsProvider() {
     private suspend fun proxyUpload(file: File?, documentId: String?) {
         if (file == null || documentId == null) return
         val uri = getCifsFileUri(documentId)
+        val sendData = SendData(
+            documentId,
+            File(documentId).name,
+            file.length(),
+            file.name.mimeType,
+            Uri.fromFile(file),
+            Uri.parse(documentId)
+        )
+        sendData.state = SendDataState.PROGRESS
+        val sendNotification = SendNotification(providerContext)
         val buf = ByteArray(1024*1024)
         var len: Int
-        var offset: Long = 0
+        sendData.progressSize = 0
+        val nextStep: Long = 10*1024*1024
+        var nextOffset: Long = nextStep
         val callback = uri.let { cifsRepository.getCallback(it, AccessMode.W) }
         withContext(Dispatchers.IO) {
             FileInputStream(file).use { input ->
                 while (input.read(buf).also { len = it } > 0) {
-                    callback?.onWrite(offset, len, buf)
-                    offset += len
+                    callback?.onWrite(sendData.progressSize, len, buf)
+                    if (sendData.progressSize > nextOffset) {
+                        sendNotification.updateProgress(sendData, sendData.progress, 100)
+                        nextOffset += nextStep
+                    }
+                    sendData.progressSize += len
                 }
                 input.close()
             }
         }
+        sendData.state = SendDataState.SUCCESS
+        sendNotification.updateProgress(sendData, 100, 100)
         callback?.onRelease()
     }
 
