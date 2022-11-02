@@ -1,32 +1,27 @@
-CIFS Documents Provider
+SMB Documents Provider
 =======================
 
-## About
+## What is this?
+"SMB Documents Provider" provides access to SMB/CIFS (samba) shared folders via ASF (Android Storage access Framework).
+All file managers that use ASF, includes Android's built-in "Files" app, and editors that use ASF will be able to access files on SMB.
 
-**CIFS Documents Provider** is an Android app to provide access to shared folder by SMB/CIFS.
+This is a forked version of "[CIFS Documents Provider](https://github.com/wa2c/cifs-documents-provider)" that fixes a critical bug.
 
-## App Store
+### Download:
+[Releases](../../releases)
 
-* [Google Play](https://play.google.com/store/apps/details?id=com.wa2c.android.cifsdocumentsprovider)
-* [F-Droid](https://f-droid.org/packages/com.wa2c.android.cifsdocumentsprovider/)
-* [Amazon Appstore](https://www.amazon.com/gp/product/B09D4264PB) 
+### Changes:
+- Fix file corruption during copying/editing.
+- Add thumbnail to file browser.
+- Change app name and id.
 
-## Download
+## What means "critical bug"?
+Copying or editing corrupt files.
 
-* [APK](https://www.wa2c.com/android/apk/CIFSDocumentsProvider/)
+Steps to reproduce:
+1. Change the file on SMB to a smaller size and save it.
 
-## Source Code
+or
 
-* [GitHub](https://github.com/wa2c/cifs-documents-provider)
+1. Copy a file with the same name and smaller file size as the file on SMB from Android's local storage.
 
-## Guide
-
-* [Wiki](https://github.com/wa2c/cifs-documents-provider/wiki)
-
-## Licence
-
-Copyright &copy; 2020 wa2c [MIT License](https://github.com/wa2c/cifs-documents-provider/blob/main/LICENSE)
-
-## Author
-
-[wa2c](https://github.com/wa2c)
